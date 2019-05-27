@@ -24,7 +24,7 @@ Few more screenshots:
 
 1. Yii2
 2. Twitter bootstrap assets (version 3)
-3. Imagine library
+3. Imaginary docker image
 4. JQuery UI (included with Yii)
 
 ## Installation:
@@ -32,11 +32,11 @@ The preferred way to install this extension is through [composer](https://getcom
 
 Either run
 
-`php composer.phar require --prefer-dist zxbodya/yii2-gallery-manager "*@dev"`
+`php composer.phar require --prefer-dist bscheshirwork/yii2-gallery-manager-imaginary "*@dev"`
 
 or add
 
-`"zxbodya/yii2-gallery-manager": "*@dev"`
+`"bscheshirwork/yii2-gallery-manager-imaginary": "*@dev"`
 
 to the require section of your `composer.json` file.
 
@@ -47,7 +47,7 @@ Add migration to create table for images:
 
 ```php
 class m150318_154933_gallery_ext
-    extends zxbodya\yii2\galleryManager\migrations\m140930_003227_gallery_manager
+    extends bscheshirwork\yii2\galleryManager\migrations\m140930_003227_gallery_manager
 {
 
 }
@@ -59,7 +59,7 @@ Or better - copy migration to you application(but be sure to **remove namespace 
 Add GalleryBehavior to your model, and configure it, create folder for uploaded files.
 
 ```php
-use zxbodya\yii2\galleryManager\GalleryBehavior;
+use bscheshirwork\yii2\galleryManager\GalleryBehavior;
 
 class Product extends \yii\db\ActiveRecord 
 {
@@ -102,7 +102,7 @@ See also [documentations of imagine](https://imagine.readthedocs.io/en/master/us
 Add GalleryManagerAction in controller somewhere in your application. Also on this step you can add some security checks for this action.
 
 ```php
-use zxbodya\yii2\galleryManager\GalleryManagerAction;
+use bscheshirwork\yii2\galleryManager\GalleryManagerAction;
 
 class ProductController extends Controller
 {
@@ -124,7 +124,7 @@ public function actions()
 Add ImageAttachmentWidget somewhere in you application, for example in editing from.
 
 ```php
-use zxbodya\yii2\galleryManager\GalleryManager;
+use bscheshirwork\yii2\galleryManager\GalleryManager;
 
 /* @var $this yii\web\View */
 /* @var $model Product */

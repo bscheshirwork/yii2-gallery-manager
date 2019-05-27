@@ -1,4 +1,7 @@
-# Gallery manaager extension changelog
+# Gallery manager extension changelog
+
+May 27, 2019
+  - New compiler for process images
 
 Apr 3, 2015
   - Added possibility to change table name for gallery images 
