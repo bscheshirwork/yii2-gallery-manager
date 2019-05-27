@@ -14,6 +14,7 @@ use yii\helpers\Url;
  * Requires Twitter Bootstrap styles to work.
  *
  * @author Bogdan Savluk <savluk.bogdan@gmail.com>
+ * @author Bogdan Stepanenko <bscheshir.work@gmail.com>
  */
 class GalleryManager extends Widget
 {

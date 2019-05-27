@@ -1,6 +1,6 @@
 {
     "name": "bscheshirwork/yii2-gallery-manager-imaginary",
-    "description": "Extension for yii, that allows to manage image galleries",
+    "description": "Extension for yii, that allows to manage image galleries use imaginary",
     "type": "yii2-extension",
     "keywords": [
         "yii2",
@@ -15,13 +15,13 @@
             "email": "savluk.bogdan@gmail.com"
         },
         {
-            "name": "BSCheshir",
+            "name": "Bogdan Stepanenko",
             "email": "bscheshir.work@gmail.com"
         }
     ],
     "require": {
-        "yiisoft/yii2-jui": "*",
-        "yiisoft/yii2-imagine": "*"
+        "php": ">=7.2.0",
+        "yiisoft/yii2-jui": "*"
     },
     "autoload": {
         "psr-4": {
