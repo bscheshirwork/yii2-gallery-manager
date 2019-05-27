@@ -42,6 +42,22 @@ to the require section of your `composer.json` file.
 
 ## Usage
 
+### docker-compose
+```
+  imaginary:
+    image: h2non/imaginary:latest
+    # optionally mount a volume as local image source
+    volumes:
+      - ./storage/web:/mnt/data
+    environment:
+      PORT: 9000
+    command: -enable-url-source -mount /mnt/data
+    expose:
+      - "9000" #for service php
+    ports:
+      - "9000:9000"
+```
+
 ### Prepare
 Add migration to create table for images:
 
