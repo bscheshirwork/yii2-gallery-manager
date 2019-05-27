@@ -1,5 +1,5 @@
 {
-    "name": "zxbodya/yii2-gallery-manager",
+    "name": "bscheshirwork/yii2-gallery-manager-imaginary",
     "description": "Extension for yii, that allows to manage image galleries",
     "type": "yii2-extension",
     "keywords": [
@@ -13,7 +13,11 @@
         {
             "name": "Bogdan Savluk",
             "email": "savluk.bogdan@gmail.com"
-        }
+        },
+        {
+            "name": "BSCheshir",
+            "email": "bscheshir.work@gmail.com"
+        },
     ],
     "require": {
         "yiisoft/yii2-jui": "*",
@@ -21,7 +25,7 @@
     },
     "autoload": {
         "psr-4": {
-            "zxbodya\\yii2\\galleryManager\\": ""
+            "bscheshirwork\\yii2\\galleryManager\\": ""
         }
     }
 }
