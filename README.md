@@ -66,38 +66,39 @@ class Product extends \yii\db\ActiveRecord
 ...
 public function behaviors()
 {
-    return [
-         'galleryBehavior' => [
-             'class' => GalleryBehavior::className(),
-             'type' => 'product',
-             'extension' => 'jpg',
-             'directory' => Yii::getAlias('@webroot') . '/images/product/gallery',
-             'url' => Yii::getAlias('@web') . '/images/product/gallery',
-             'versions' => [
-                 'small' => function ($img) {
-                     /** @var \Imagine\Image\ImageInterface $img */
-                     return $img
-                         ->copy()
-                         ->thumbnail(new \Imagine\Image\Box(200, 200));
-                 },
-                 'medium' => function ($img) {
-                     /** @var \Imagine\Image\ImageInterface $img */
-                     $dstSize = $img->getSize();
-                     $maxWidth = 800;
-                     if ($dstSize->getWidth() > $maxWidth) {
-                         $dstSize = $dstSize->widen($maxWidth);
-                     }
-                     return $img
-                         ->copy()
-                         ->resize($dstSize);
-                 },
-             ]
-         ]
-    ];
+        $model = $this;
+
+        return [
+            'galleryBehavior' => [
+                'class' => GalleryBehavior::class,
+                'type' => 'nestedObject', // @see CrudController::actions()
+                'extension' => 'jpg',
+                'directory' => Yii::getAlias('@storageWeb') . ($galleryPath = '/images/gallery/product'),
+                'url' => Yii::getAlias('@storageUrl') . $galleryPath,
+                'imaginaryDirectory' => $galleryPath,
+                'versions' => [
+                    'small' => function ($originalImagePath, $originalImagePathForImagine) use ($model) {
+                        $width = 400;
+                        $height = 274;
+                        /** @var GalleryBehavior $behavior */
+                        $behavior = $model->getBehavior('galleryBehavior');
+                        $httpQuery = http_build_query([
+                            'file' => $originalImagePathForImagine,
+                            'width' => $width,
+                            'height' => $height,
+                        ]);
+
+                        $url = $behavior->imaginary . '/crop?' . $httpQuery;
+
+                        return file_get_contents($url);
+                    },
+                ],
+            ],
+        ];
 }
 ```
 
-See also [documentations of imagine](https://imagine.readthedocs.io/en/master/usage/introduction.html) for image transformations. 
+See also [documentations of imaginary http API](https://github.com/h2non/imaginary#http-api) for image transformations. 
 
 Add GalleryManagerAction in controller somewhere in your application. Also on this step you can add some security checks for this action.
 
