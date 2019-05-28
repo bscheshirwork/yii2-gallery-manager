@@ -46,6 +46,17 @@ class GalleryManagerAction extends Action
     protected $behavior;
 
 
+    /**
+     * {@inheritDoc}
+     * @param $action
+     * @return string
+     * @throws HttpException
+     * @throws NotFoundHttpException
+     * @throws \yii\base\ErrorException
+     * @throws \yii\base\Exception
+     * @throws \yii\base\InvalidConfigException
+     * @throws \yii\db\Exception
+     */
     public function run($action)
     {
         $this->type = Yii::$app->request->get('type');
@@ -136,7 +147,7 @@ class GalleryManagerAction extends Action
      * Method to handle file upload thought XHR2
      * On success returns JSON object with image info.
      *
-     * @return string
+     * @return string|array
      * @throws \yii\base\Exception
      * @throws \yii\db\Exception
      */
@@ -148,25 +159,21 @@ class GalleryManagerAction extends Action
         $fileName = $imageFile->tempName;
         $image = $this->behavior->addImage($fileName);
 
-        // not "application/json", because  IE8 trying to save response as a file
+        Yii::$app->response->format = \yii\web\Response::FORMAT_JSON;
 
-        Yii::$app->response->headers->set('Content-Type', 'text/html');
-
-        return Json::encode(
-            array(
-                'id' => $image->id,
-                'rank' => $image->rank,
-                'name' => (string) $image->name,
-                'description' => (string) $image->description,
-                'preview' => $image->getUrl('preview'),
-            )
-        );
+        return [
+            'id' => $image->id,
+            'rank' => $image->rank,
+            'name' => (string) $image->name,
+            'description' => (string) $image->description,
+            'preview' => $image->getUrl('preview'),
+        ];
     }
 
     /**
      * Saves images order according to request.
      *
-     * @param array $order new arrange of image ids, to be saved
+     * @param array $order new arrange of image ids to be saved
      *
      * @return string
      * @throws HttpException
@@ -175,7 +182,7 @@ class GalleryManagerAction extends Action
     public function actionOrder($order)
     {
         if (count($order) == 0) {
-            throw new HttpException(400, 'No data, to save');
+            throw new HttpException(400, 'No data to save');
         }
         $res = $this->behavior->arrange($order);
 
@@ -199,15 +206,15 @@ class GalleryManagerAction extends Action
             throw new HttpException(400, 'Nothing to save');
         }
         $images = $this->behavior->updateImagesData($imagesData);
-        $resp = array();
+        $resp = [];
         foreach ($images as $model) {
-            $resp[] = array(
+            $resp[] = [
                 'id' => $model->id,
                 'rank' => $model->rank,
                 'name' => (string) $model->name,
                 'description' => (string) $model->description,
                 'preview' => $model->getUrl('preview'),
-            );
+            ];
         }
 
         return Json::encode($resp);
