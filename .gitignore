@@ -15,4 +15,10 @@ Thumbs.db
 # Mac DS_Store Files
 .DS_Store
 
+# composer vendor dir
+/vendor
+
+# composer.lock for yii2-extension not needed to store
+composer.lock
+
 /.sass-cache

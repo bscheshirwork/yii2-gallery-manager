@@ -30,8 +30,7 @@
       if (!opts.hasDesc) {
         $gallery.addClass('no-name-no-desc');
         $('.edit_selected', $gallery).hide();
-      }
-      else $gallery.addClass('no-name');
+      } else $gallery.addClass('no-name');
 
     } else if (!opts.hasDesc)
       $gallery.addClass('no-desc');
@@ -39,6 +38,7 @@
     var $sorter = $('.sorter', $gallery);
     var $images = $('.images', $sorter);
     var $editorModal = $('.editor-modal', $gallery);
+    var $errorOverlay = $('.error-overlay', $gallery);
     var $progressOverlay = $('.progress-overlay', $gallery);
     var $uploadProgress = $('.upload-progress', $progressOverlay);
     var $editorForm = $('.form', $editorModal);
@@ -103,10 +103,10 @@
       photo.data('rank', rank);
 
       $('img', photo).attr('src', src);
-      if (opts.hasName){
+      if (opts.hasName) {
         $('.caption h5', photo).text(name);
       }
-      if (opts.hasDesc){
+      if (opts.hasDesc) {
         $('.caption p', photo).text(description);
       }
 
@@ -126,7 +126,7 @@
           description = $('.caption p', photo).text();
         form.append(createEditorElement(id, src, name, description));
       }
-      if (l > 0){
+      if (l > 0) {
         $editorModal.modal('show');
       }
     }
@@ -230,17 +230,17 @@
           if (opts.csrfToken) {
             fd.append(opts.csrfTokenName, opts.csrfToken);
           }
-          var xhr = new XMLHttpRequest();
-          xhr.open('POST', opts.uploadUrl, true);
-          xhr.onload = function () {
+
+          $.ajax({
+            type: 'POST',
+            url: opts.uploadUrl,
+            data: fd,
+            processData: false, // don't let jquery process the data
+            contentType: false, // let xhr set the content type
+          }).done(function (resp, textStatus, jqXHR) {
             uploadedCount++;
-            if (this.status == 200) {
-              var resp = JSON.parse(this.response);
-              addPhoto(resp['id'], resp['preview'], resp['name'], resp['description'], resp['rank']);
-              ids.push(resp['id']);
-            } else {
-              // exception !!!
-            }
+            addPhoto(resp['id'], resp['preview'], resp['name'], resp['description'], resp['rank']);
+            ids.push(resp['id']);
             $uploadProgress.css('width', '' + (5 + 95 * uploadedCount / filesCount) + '%');
 
             if (uploadedCount === filesCount) {
@@ -248,8 +248,14 @@
               $progressOverlay.hide();
               if (opts.hasName || opts.hasDesc) editPhotos(ids);
             }
-          };
-          xhr.send(fd);
+          }).fail(function (jqXHR, textStatus, errorThrown) {
+            $progressOverlay.hide();
+            $errorOverlay.show();
+            setTimeout(function() {
+              $errorOverlay.fadeOut();
+            }, 5000);
+            console.log(textStatus, errorThrown);
+          });
         }
 
       };
@@ -293,7 +299,6 @@
         function handleDragEnd() {
           isOver = false;
         }
-
 
         el.addEventListener('dragover', handleDragOver, false);
         el.addEventListener('dragleave', handleDragLeave, false);

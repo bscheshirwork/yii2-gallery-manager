@@ -73,6 +73,12 @@ use yii\web\View;
             <span class="drop-hint-info"><?php echo Yii::t('galleryManager/main', 'Drop Files Here…') ?></span>
         </div>
     </div>
+    <div class="error-overlay">
+        <div class="overlay-bg">&nbsp;</div>
+        <div class="error-hint">
+            <span class="error-hint-info"><?php echo Yii::t('galleryManager/main', 'Error loading images!') ?></span>
+        </div>
+    </div>
     <div class="progress-overlay">
         <div class="overlay-bg">&nbsp;</div>
         <!-- Upload Progress Modal-->
