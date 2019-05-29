@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
 
-uglifyjs -m --unsafe -o ./assets/jquery.galleryManager.min.js ./assets/jquery.galleryManager.js
-uglifyjs -m --unsafe -o ./assets/jquery.iframe-transport.min.js ./assets/jquery.iframe-transport.js
-scss ./assets/galleryManager.scss > ./assets/galleryManager.css
+uglifyjs -m --unsafe -o ./src/assets/jquery.galleryManager.min.js ./src/assets/jquery.galleryManager.js
+uglifyjs -m --unsafe -o ./src/assets/jquery.iframe-transport.min.js ./src/assets/jquery.iframe-transport.js
+node-sass ./src/assets/galleryManager.scss ./src/assets/galleryManager.css

@@ -3,17 +3,20 @@
 # docker-compose run --rm php composer update
 # second
 # docker-compose run --rm php ./yii message ./messageConfig.php
+#
+# for minify js and generate css
+# docker-compose run --rm node sh -c "cd /var/www/html/ && ./build.sh"
 version: '3'
 services:
   php:
     image: bscheshir/php:7.3.5-fpm-alpine-4yii2-xdebug
     restart: always
     volumes:
-      - .:/var/www/html
+      - ..:/var/www/html
       - ~/.composer/cache:/root/.composer/cache
     environment:
       TZ: Europe/Moscow
   node:
-    image: node:8.16.0-alpine
+    build: .
     volumes:
-      - .:/var/www/html
+      - ..:/var/www/html
