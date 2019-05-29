@@ -59,16 +59,27 @@ to the require section of your `composer.json` file.
 ```
 
 ### Prepare
-Add migration to create table for images:
+Add migration namespace to console config:
 
 ```php
-class m150318_154933_gallery_ext
-    extends bscheshirwork\yii2\galleryManager\migrations\m140930_003227_gallery_manager
-{
-
-}
+return [
+    'id' => 'app-console',
+...
+    'controllerMap' => [
+        'migrate' => [
+            'class' => yii\console\controllers\MigrateController::class,
+            // Since version 2.0.12 an array can be specified for loading migrations from multiple sources.
+            'migrationPath' => [
+                '@app/migrations',
+                '@yii/rbac/migrations/',
+            ],
+            'migrationNamespaces' => [
+                'bscheshirwork\yii2\galleryManager\migrations',
+                ...
+            ],
+        ],
+...
 ```
-Or better - copy migration to you application(but be sure to **remove namespace from it** - it should be in global namespace)
 
 ### Add configurations for upload and store images
 

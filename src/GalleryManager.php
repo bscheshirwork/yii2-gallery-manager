@@ -30,7 +30,7 @@ class GalleryManager extends Widget
     /** @var string Route to gallery controller */
     public $apiRoute = false;
 
-    public $options = array();
+    public $options = [];
 
 
     public function init()
@@ -59,15 +59,15 @@ class GalleryManager extends Widget
             throw new Exception('$apiRoute must be set.', 500);
         }
 
-        $images = array();
+        $images = [];
         foreach ($this->behavior->getImages() as $image) {
-            $images[] = array(
+            $images[] = [
                 'id' => $image->id,
                 'rank' => $image->rank,
-                'name' => (string)$image->name,
-                'description' => (string)$image->description,
+                'name' => (string) $image->name,
+                'description' => (string) $image->description,
                 'preview' => $image->getUrl('preview'),
-            );
+            ];
         }
 
         $baseUrl = [
@@ -77,7 +77,7 @@ class GalleryManager extends Widget
             'galleryId' => $this->behavior->getGalleryId()
         ];
 
-        $opts = array(
+        $opts = [
             'hasName' => $this->behavior->hasName ? true : false,
             'hasDesc' => $this->behavior->hasDescription ? true : false,
             'uploadUrl' => Url::to($baseUrl + ['action' => 'ajaxUpload']),
@@ -87,7 +87,7 @@ class GalleryManager extends Widget
             'nameLabel' => Yii::t('galleryManager/main', 'Name'),
             'descriptionLabel' => Yii::t('galleryManager/main', 'Description'),
             'photos' => $images,
-        );
+        ];
 
         $opts = Json::encode($opts);
         $view = $this->getView();
