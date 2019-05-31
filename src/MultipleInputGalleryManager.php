@@ -20,7 +20,11 @@ class MultipleInputGalleryManager extends GalleryManager
      */
     public $indexPlaceholder = '';
 
-    /** Render widget */
+    /**
+     * {@inheritDoc}
+     * Render widget
+     * @throws Exception
+     */
     public function run()
     {
         if ($this->apiRoute === null) {
@@ -35,7 +39,7 @@ class MultipleInputGalleryManager extends GalleryManager
             $this->apiRoute,
             'type' => $this->behavior->type,
             'behaviorName' => $this->behaviorName,
-            'galleryId' => $this->behavior->getGalleryId() ?? '',
+            'temporaryIndex' => $this->behavior->temporaryIndex,
         ];
 
         $opts = [

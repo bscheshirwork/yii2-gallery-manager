@@ -2,7 +2,6 @@
 
 namespace bscheshirwork\yii2\galleryManager;
 
-
 use Yii;
 use yii\base\Action;
 use yii\db\ActiveRecord;
@@ -39,6 +38,7 @@ class GalleryManagerAction extends Action
     protected $type;
     protected $behaviorName;
     protected $galleryId;
+    protected $temporaryIndex;
 
     /** @var  ActiveRecord */
     protected $owner;
@@ -56,12 +56,14 @@ class GalleryManagerAction extends Action
      * @throws \yii\base\Exception
      * @throws \yii\base\InvalidConfigException
      * @throws \yii\db\Exception
+     * @throws \Throwable
      */
     public function run($action)
     {
         $this->type = Yii::$app->request->get('type');
         $this->behaviorName = Yii::$app->request->get('behaviorName');
         $this->galleryId = Yii::$app->request->get('galleryId');
+        $this->temporaryIndex = Yii::$app->request->get('temporaryIndex');
 
         if (!array_key_exists($this->type, $this->types)) {
             throw new HttpException(400, 'Type does not exists');
@@ -71,14 +73,6 @@ class GalleryManagerAction extends Action
         $this->behavior = $this->owner->getBehavior($this->behaviorName);
 
         if ($this->galleryId) {
-            if (strpos($this->galleryId, $this->behavior->temporaryPrefix) !== FALSE) {
-                // temporary id for new model
-                if (!$this->behavior->setTemporaryId($this->galleryId)) {
-                    throw new NotFoundHttpException();
-                };
-
-
-            } else {
                 // common id of model
                 $pkNames = $this->owner->primaryKey();
                 $pkValues = explode($this->behavior->pkGlue, $this->galleryId);
@@ -89,7 +83,9 @@ class GalleryManagerAction extends Action
                 }
                 //after find
                 $this->behavior = $this->owner->getBehavior($this->behaviorName);
-            }
+        } elseif (isset($this->temporaryIndex)) {
+            // temporary id for new model
+            $this->behavior->temporaryIndex = $this->temporaryIndex;
         }
         // This actions is NOT collect another images for same galleryId
 
@@ -118,10 +114,10 @@ class GalleryManagerAction extends Action
      * @return string
      * @throws \yii\base\Exception
      * @throws \yii\db\Exception
+     * @throws \Throwable
      */
     protected function actionDelete($ids)
     {
-
         $this->behavior->deleteImages($ids);
 
         return 'OK';
@@ -134,10 +130,10 @@ class GalleryManagerAction extends Action
      * @return string
      * @throws \yii\base\ErrorException
      * @throws \yii\db\Exception
+     * @throws \yii\base\InvalidConfigException
      */
     protected function actionDeleteOrphan()
     {
-
         $this->behavior->deleteOrphanImages();
 
         return 'OK';
@@ -150,10 +146,10 @@ class GalleryManagerAction extends Action
      * @return string|array
      * @throws \yii\base\Exception
      * @throws \yii\db\Exception
+     * @throws \Throwable
      */
     public function actionAjaxUpload()
     {
-
         $imageFile = UploadedFile::getInstanceByName('gallery-image');
 
         $fileName = $imageFile->tempName;
@@ -178,6 +174,7 @@ class GalleryManagerAction extends Action
      * @return string
      * @throws HttpException
      * @throws \yii\db\Exception
+     * @throws \yii\base\InvalidConfigException
      */
     public function actionOrder($order)
     {

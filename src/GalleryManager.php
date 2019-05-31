@@ -51,8 +51,11 @@ class GalleryManager extends Widget
         ];
     }
 
-
-    /** Render widget */
+    /**
+     * {@inheritDoc}
+     * Render widget
+     * @throws Exception
+     */
     public function run()
     {
         if ($this->apiRoute === null) {
@@ -74,8 +77,13 @@ class GalleryManager extends Widget
             $this->apiRoute,
             'type' => $this->behavior->type,
             'behaviorName' => $this->behaviorName,
-            'galleryId' => $this->behavior->getGalleryId()
         ];
+        if ($galleryId = $this->behavior->getGalleryId()) {
+            $baseUrl['galleryId'] = $galleryId;
+        } else {
+            Yii::createObject($this->behavior->tempClass)::regenerateTemps($this->behavior->temporaryIndex);
+            $baseUrl['temporaryIndex'] = $this->behavior->temporaryIndex;
+        }
 
         $opts = [
             'hasName' => $this->behavior->hasName ? true : false,

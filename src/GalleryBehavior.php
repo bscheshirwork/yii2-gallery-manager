@@ -2,16 +2,11 @@
 
 namespace bscheshirwork\yii2\galleryManager;
 
-use Imagine\Image\Box;
-use Imagine\Image\ImageInterface;
 use Yii;
 use yii\base\Behavior;
 use yii\base\Exception;
 use yii\db\ActiveRecord;
-use yii\db\Query;
 use yii\helpers\FileHelper;
-use yii\helpers\Json;
-use yii\imagine\Image;
 
 /**
  * Behavior for adding gallery to any model.
@@ -20,7 +15,6 @@ use yii\imagine\Image;
  * @author Bogdan Stepanenko <bscheshir.work@gmail.com>
  *
  * @property string $galleryId
- * @property string $temporaryId
  */
 class GalleryBehavior extends Behavior
 {
@@ -30,36 +24,10 @@ class GalleryBehavior extends Behavior
      */
     public $pkGlue = '_';
     /**
-     * The prefix of string for temporary id for new models
-     * @var string
-     */
-    public $temporaryPrefix = 'temp';
-    /**
      * The index of temporary id for new models. Can be separate multiple gallery by index like widgetId or increment integer
      * @var string
      */
     public $temporaryIndex = '0';
-    /**
-     * The rule for create temporary id.
-     * Available placeholders:
-     *    '{temporaryPrefix}' => $this->temporaryPrefix,
-     *    '{temporaryIndex}' => $this->temporaryIndex,
-     *    '{sessionId}' => Yii::$app->session->getId(),
-     *    '{userId}' => Yii::$app->user->getId(),
-     *    '{combineId}' => Yii::$app->user->getId() ?? Yii::$app->session->getId(),
-     * @var string
-     */
-    public $temporaryTemplate = '{temporaryPrefix}-{temporaryIndex}-{combineId}';
-    /**
-     * The rule for read temporary id. Can be a valid regexp part.
-     * @see GalleryBehavior::getTemporaryId()
-     * {temporaryIndex} will be replaced by $temporaryIndexFilter:
-     * For example '/{temporaryPrefix}-(\d+)-{sessionId}/'
-     * another placeholders will be replaced like $temporaryTemplate available placeholders
-     * $temporaryIndex will be read from $matches[1] from result regexp
-     * @var string
-     */
-    public $temporaryIndexFilter = '(\d+)';
     /**
      * @var string Type name assigned to model in image attachment action
      * @see     GalleryManagerAction::$types
@@ -91,6 +59,13 @@ class GalleryBehavior extends Behavior
      * @var string
      */
     public $directory;
+    /**
+     * directory fol all temporary images.
+     * Instead of ownerId.
+     * Image will be separated by id same at common case: directory/tempDirectory/imageId/version.jpg
+     * @var string
+     */
+    public $tempDirectory = 'temp';
     /**
      * Directory Url, without trailing slash
      * @var string
@@ -137,22 +112,35 @@ class GalleryBehavior extends Behavior
     public $timeHash = '_';
 
     /**
-     * Used by GalleryManager
+     * Used by GalleryManager for frontend js
      * @var bool
      * @see GalleryManager::run
      */
     public $hasName = true;
     /**
-     * Used by GalleryManager
+     * Used by GalleryManager for frontend js
      * @var bool
      * @see GalleryManager::run
      */
     public $hasDescription = true;
 
     /**
-     * @var string Table name for saving gallery images meta information
+     * AR for saving gallery images meta information
+     * Can be redefine for your own class with different table
+     * @var string|array
      */
-    public $tableName = '{{%gallery_image}}';
+    public $imageClass = GalleryImage::class;
+
+    /**
+     * AR for saving temporary id for new record information
+     * Can be redefine for your own class with different table
+     * @var string|array
+     */
+    public $tempClass = GalleryTemp::class;
+
+    /**
+     * @var string currently folder of images
+     */
     protected $_galleryId;
 
     /**
@@ -179,6 +167,10 @@ class GalleryBehavior extends Behavior
         }
     }
 
+    /**
+     * {@inheritDoc}
+     * @return array
+     */
     public function events()
     {
         return [
@@ -224,19 +216,24 @@ class GalleryBehavior extends Behavior
     public function afterInsert()
     {
         $galleryId = $this->getGalleryId();
-        if ($this->_galleryId && ($this->_galleryId != $galleryId)) {
-
-            \Yii::$app->db->createCommand()
-                ->update(
-                    $this->tableName,
-                    ['ownerId' => $galleryId],
-                    ['ownerId' => $this->_galleryId, 'type' => $this->type]
-                )->execute();
-
-            $dirPath1 = $this->directory . '/' . $this->_galleryId;
-            $dirPath2 = $this->directory . '/' . $galleryId;
-            if (is_dir($dirPath1)) {
-                rename($dirPath1, $dirPath2);
+        // We have fill form in this request
+        // not for another case insert.
+        /** @var GalleryTemp $tempInstance */
+        $tempInstance = Yii::createObject($this->tempClass);
+        $imageIds = $tempInstance::imageIdsFromTemp($this->temporaryIndex);
+        if ($imageIds) {
+            /** @var GalleryImage $instance */
+            $instance = Yii::createObject($this->imageClass);
+            $instance::updateAll(['ownerId' => $galleryId], ['id' => $imageIds]);
+            $this->_galleryId = $this->tempDirectory;
+            foreach ($imageIds as $imageId) {
+                //rename only related ids
+                $dirPath1 = $this->directory . DIRECTORY_SEPARATOR . $this->_galleryId . DIRECTORY_SEPARATOR . $imageId;
+                $dirPath2 = $this->directory . DIRECTORY_SEPARATOR . $galleryId . DIRECTORY_SEPARATOR . $imageId;
+                if (is_dir($dirPath1)) {
+                    $this->createFolders($dirPath2);
+                    rename($dirPath1, $dirPath2);
+                }
             }
         }
     }
@@ -285,14 +282,53 @@ class GalleryBehavior extends Behavior
     {
         $galleryId = $this->getGalleryId();
         if ($this->_galleryId && ($this->_galleryId != $galleryId)) {
-            $dirPath1 = $this->directory . '/' . $galleryId;
-            $dirPath2 = $this->directory . '/' . $this->_galleryId;
-            if (is_dir($dirPath1)) {
-                rename($dirPath1, $dirPath2);
+            $galleryDir = $this->directory . DIRECTORY_SEPARATOR . $galleryId;
+            $dirs = FileHelper::findDirectories($galleryDir, ['recursive' => false]);
+            foreach ($dirs as $dirPath1) {
+                $basename = basename($dirPath1);
+                //rename only related ids
+                $dirPath2 = $this->directory . DIRECTORY_SEPARATOR . $this->_galleryId . DIRECTORY_SEPARATOR . $basename;
+                if (is_dir($dirPath1)) {
+                    $this->createFolders($dirPath2);
+                    rename($dirPath1, $dirPath2);
+                }
             }
+            $this->removeDirectory($galleryDir);
         }
     }
 
+    /**
+     * Remove temporary id (this id will use for load image on new model)
+     * This data will be used on self::rollbackDir
+     * Run this on finally save complex form after transaction->commit()
+     *
+     *  $transaction->commit();
+     *  $model->removeGalleryTempData();
+     *  foreach ($model->relatedModels as $relatedModel) {
+     *      $relatedModel->removeGalleryTempData();
+     *  }
+     *
+     * @throws \yii\base\InvalidConfigException
+     * @throws Exception
+     */
+    public function removeGalleryTempData()
+    {
+        $imageIds = [];
+        /** @var GalleryImage $image */
+        foreach ($this->getImages() as $image) {
+            $imageIds[] = $image->id;
+        }
+        if ($imageIds) {
+            /** @var GalleryTemp $instanceTemp */
+            $instanceTemp = Yii::createObject(GalleryTemp::class);
+            $instanceTemp::deleteAll(['imageId' => $imageIds]);
+        }
+    }
+
+    /**
+     * Internal storage for image AR
+     * @var null|GalleryImage[]
+     */
     protected $_images = null;
 
     /**
@@ -302,18 +338,35 @@ class GalleryBehavior extends Behavior
     public function getImages()
     {
         if ($this->_images === null) {
-            $query = new \yii\db\Query();
-
-            $imagesData = $query
-                ->select(['id', 'name', 'description', 'rank'])
-                ->from($this->tableName)
-                ->where(['type' => $this->type, 'ownerId' => $this->getGalleryId()])
-                ->orderBy(['rank' => 'asc'])
-                ->all();
-
-            $this->_images = [];
-            foreach ($imagesData as $imageData) {
-                $this->_images[] = new GalleryImage($this, $imageData);
+            /** @var GalleryImage $instance */
+            $instance = Yii::createObject(GalleryImage::class);
+            if ($ownerId = $this->getGalleryId()) {
+                $this->_images = $instance::find()
+                    ->where([
+                        'type' => $this->type,
+                        'ownerId' => $this->getGalleryId(),
+                    ])
+                    ->orderBy(['rank' => 'asc'])
+                    ->all();
+                foreach ($this->_images as $image) {
+                    $image->galleryBehavior = $this;
+                }
+            } else {
+                /** @var GalleryTemp $instanceTemp */
+                $instanceTemp = Yii::createObject(GalleryTemp::class);
+                if ($imageIds = $instanceTemp::imageIdsFromTemp($this->temporaryIndex)) {
+                    $this->_images = $instance::find()
+                        ->where([
+                            'id' => $imageIds,
+                        ])
+                        ->orderBy(['rank' => 'asc'])
+                        ->all();
+                    foreach ($this->_images as $image) {
+                        $image->galleryBehavior = $this;
+                    }
+                } else {
+                    $this->_images = [];
+                }
             }
         }
 
@@ -322,16 +375,24 @@ class GalleryBehavior extends Behavior
 
     protected function getFileName($imageId, $version = 'original')
     {
-        return implode(
-            '/',
-            [
-                $this->getGalleryId(),
-                $imageId,
-                $version . '.' . $this->extension,
-            ]
-        );
+        $folder = $this->getGalleryId();
+        if (!$folder) {
+            $folder = $this->tempDirectory;
+        }
+
+        return implode('/', [
+            $folder,
+            $imageId,
+            $version . '.' . $this->extension,
+        ]);
     }
 
+    /**
+     * Get url for display image
+     * @param $imageId
+     * @param string $version
+     * @return string|null
+     */
     public function getUrl($imageId, $version = 'original')
     {
         $path = $this->getFilePath($imageId, $version);
@@ -341,7 +402,6 @@ class GalleryBehavior extends Behavior
         }
 
         if (!empty($this->timeHash)) {
-
             $time = filemtime($path);
             $suffix = '?' . $this->timeHash . '=' . crc32($time);
         } else {
@@ -351,76 +411,36 @@ class GalleryBehavior extends Behavior
         return $this->url . '/' . $this->getFileName($imageId, $version) . $suffix;
     }
 
+    /**
+     * Get file path to image
+     * @param $imageId
+     * @param string $version
+     * @return string
+     */
     public function getFilePath($imageId, $version = 'original')
     {
         return $this->directory . '/' . $this->getFileName($imageId, $version);
     }
 
+    /**
+     * file path for process image. For existing images from previous request
+     * @param $imageId
+     * @param string $version
+     * @return string
+     */
     public function getImaginaryFilePath($imageId, $version = 'original')
     {
         return $this->imaginaryDirectory . '/' . $this->getFileName($imageId, $version);
     }
 
+    /**
+     * Get dir for existing owner. For delete images.
+     * @return string
+     * @throws Exception
+     */
     public function getDirectoryPath()
     {
         return $this->directory . '/' . $this->getGalleryId();
-    }
-
-    /**
-     * Get application components if necessary
-     */
-    public function getApplicationDataByTemplate()
-    {
-        $result = [];
-        if (Yii::$app instanceof \yii\web\Application) {
-            if (strpos($this->temporaryTemplate, '{userId}') !== false) {
-                $result['{userId}'] = Yii::$app->user->getId();
-            }
-            if (strpos($this->temporaryTemplate, '{sessionId}') !== false) {
-                $result['{sessionId}'] = Yii::$app->session->getId();
-            }
-            if (strpos($this->temporaryTemplate, '{combineId}') !== false) {
-                $result['{combineId}'] = Yii::$app->user->getId() ?? Yii::$app->session->getId();
-            }
-        }
-
-        return $result;
-    }
-
-    /**
-     * Build temporaryIndex from dirty galleryId
-     *
-     * @param $rawGalleryId
-     * @return bool
-     */
-    public function setTemporaryId($rawGalleryId)
-    {
-        $template = strtr($this->temporaryTemplate, $this->getApplicationDataByTemplate());
-        $regexp = '/' . strtr($template, [
-                '{temporaryPrefix}' => $this->temporaryPrefix,
-                '{temporaryIndex}' => $this->temporaryIndexFilter,
-            ]) . '/';
-        if (preg_match($regexp, $rawGalleryId, $matches) !== FALSE) {
-            $this->temporaryIndex = $matches[1];
-
-            return true;
-        }
-
-        return false;
-    }
-
-    /**
-     * Generate a temporary id for new models
-     * @return string
-     */
-    public function getTemporaryId()
-    {
-        $template = strtr($this->temporaryTemplate, $this->getApplicationDataByTemplate());
-
-        return strtr($template, [
-            '{temporaryPrefix}' => $this->temporaryPrefix,
-            '{temporaryIndex}' => $this->temporaryIndex,
-        ]);
     }
 
     /**
@@ -433,7 +453,7 @@ class GalleryBehavior extends Behavior
     {
         $pk = $this->owner->getPrimaryKey();
         if ($pk === null) {
-            $pk = $this->getTemporaryId();
+            return '';
         }
         if (is_array($pk)) {
             return implode($this->pkGlue, $pk);
@@ -518,20 +538,15 @@ class GalleryBehavior extends Behavior
      * @return bool
      * @throws Exception
      * @throws \yii\db\Exception
+     * @throws \Throwable
      */
     public function deleteImage($imageId)
     {
-        $db = \Yii::$app->db;
-        $result = (bool) $db->createCommand()
-            ->delete(
-                $this->tableName,
-                [
-                    'type' => $this->type,
-                    'ownerId' => $this->getGalleryId(),
-                    'id' => $imageId
-                ]
-            )->execute();
-
+        $result = false;
+        if ($image = Yii::createObject(GalleryImage::class)::findOne($imageId)) {
+            /** @var GalleryImage $image */
+            $result = $image->delete();
+        }
         if ($result) {
             foreach ($this->versions as $version => $fn) {
                 $filePath = $this->getFilePath($imageId, $version);
@@ -550,6 +565,7 @@ class GalleryBehavior extends Behavior
      * @param $imageIds
      * @throws Exception
      * @throws \yii\db\Exception
+     * @throws \Throwable
      */
     public function deleteImages($imageIds)
     {
@@ -575,24 +591,18 @@ class GalleryBehavior extends Behavior
      * actions is a {'apiRoute'}?action=deleteOrphan&type={'type'}&behaviorName={'behaviorName'}
      * @throws \yii\base\ErrorException
      * @throws \yii\db\Exception
+     * @throws \yii\base\InvalidConfigException
      */
     public function deleteOrphanImages()
     {
-        $toDelete = \Yii::$app->db->createCommand(
-            'SELECT DISTINCT `ownerId` FROM ' . $this->tableName . ' WHERE `ownerId` LIKE :ownerId AND `type` = :type',
-            [':ownerId' => $this->temporaryPrefix . '%', ':type' => $this->type]
-        )->queryColumn();
-
-        foreach ($toDelete as $item) {
-            \Yii::$app->db->createCommand()
-                ->delete(
-                    $this->tableName,
-                    [
-                        'type' => $this->type,
-                        'ownerId' => $item,
-                    ]
-                )->execute();
-            FileHelper::removeDirectory($this->directory . '/' . $item);
+        /** @var GalleryImage $instance */
+        $instance = Yii::createObject(GalleryImage::class);
+        foreach ($models = $instance::findAll([
+            'type' => $this->type,
+            'ownerId' => '',
+        ]) as $item) {
+            $item->delete();
+            FileHelper::removeDirectory($this->directory . '/' . $this->tempDirectory);
         }
     }
 
@@ -603,36 +613,51 @@ class GalleryBehavior extends Behavior
      * @return GalleryImage
      * @throws Exception
      * @throws \yii\db\Exception
+     * @throws \Throwable
      */
     public function addImage($fileName)
     {
-        $db = \Yii::$app->db;
-        $db->createCommand()
-            ->insert(
-                $this->tableName,
-                [
-                    'type' => $this->type,
-                    'ownerId' => $this->getGalleryId()
-                ]
-            )->execute();
+        /** @var GalleryImage $image */
+        $image = Yii::createObject($this->imageClass);
+        $image->galleryBehavior = $this;
+        $image->type = $this->type;
+        $image->ownerId = $this->getGalleryId();
 
-        $id = $db->getLastInsertID('gallery_image_id_seq');
-        $db->createCommand()
-            ->update(
-                $this->tableName,
-                ['rank' => $id],
-                ['id' => $id]
-            )->execute();
+        $transaction = Yii::$app->db->beginTransaction();
+        $transactionLevel = $transaction->level;
+        try {
+            $pass = $image->save();
+            $id = $image->id;
+            $image->rank = $id;
+            $pass &= (int) $image->save();
 
-        $this->replaceImage($id, $fileName);
+            if (!$image->ownerId) {
+                $this->temporaryIndex;
+                $temp = Yii::createObject($this->tempClass);
+                /** @var GalleryTemp $temp */
+                $pass &= (int) $temp::generateTemp($id, $this->temporaryIndex);
+            }
 
-        $galleryImage = new GalleryImage($this, ['id' => $id, 'rank' => $id]);
+            $this->replaceImage($id, $fileName);
 
-        if ($this->_images !== null) {
-            $this->_images[] = $galleryImage;
+            $transaction->commit();
+        } catch (\Exception $e) {
+            if ($transaction->isActive && $transactionLevel == $transaction->level) {
+                $transaction->rollBack();
+            }
+            throw $e;
+        } catch (\Throwable $e) {
+            if ($transaction->isActive && $transactionLevel == $transaction->level) {
+                $transaction->rollBack();
+            }
+            throw $e;
         }
 
-        return $galleryImage;
+        if ($this->_images !== null) {
+            $this->_images[] = $image;
+        }
+
+        return $image;
     }
 
     /**
@@ -640,6 +665,7 @@ class GalleryBehavior extends Behavior
      * @param $order
      * @return mixed
      * @throws \yii\db\Exception
+     * @throws \yii\base\InvalidConfigException
      */
     public function arrange($order)
     {
@@ -658,17 +684,13 @@ class GalleryBehavior extends Behavior
         foreach ($order as $k => $v) {
             $res[$k] = $orders[$i];
 
-            \Yii::$app->db->createCommand()
-                ->update(
-                    $this->tableName,
-                    ['rank' => $orders[$i]],
-                    ['id' => $k]
-                )->execute();
+            /** @var GalleryImage $instance */
+            $instance = Yii::createObject(GalleryImage::class);
+            $instance::updateAll(['rank' => $orders[$i]], ['id' => $k]);
 
             $i++;
         }
 
-        // todo: arrange images if presented
         return $order;
     }
 
@@ -692,19 +714,21 @@ class GalleryBehavior extends Behavior
                 }
             }
         } else {
-            $rawImages = (new Query())
-                ->select(['id', 'name', 'description', 'rank'])
-                ->from($this->tableName)
-                ->where(['type' => $this->type, 'ownerId' => $this->getGalleryId()])
+            /** @var GalleryImage $instance */
+            $instance = Yii::createObject(GalleryImage::class);
+            foreach ($models = $instance::find()
+                ->where([
+                    'type' => $this->type,
+                    'ownerId' => $this->getGalleryId(), // empty for isNewRecord of owner
+                ])
                 ->andWhere(['in', 'id', $imageIds])
                 ->orderBy(['rank' => 'asc'])
-                ->all();
-            foreach ($rawImages as $image) {
-                $imagesToUpdate[] = new GalleryImage($this, $image);
+                ->all() as $item) {
+                /** @var GalleryImage $item */
+                $item->galleryBehavior = $this;
+                $imagesToUpdate[] = $item;
             }
         }
-
-
         foreach ($imagesToUpdate as $image) {
             if (isset($imagesData[$image->id]['name'])) {
                 $image->name = $imagesData[$image->id]['name'];
@@ -712,12 +736,7 @@ class GalleryBehavior extends Behavior
             if (isset($imagesData[$image->id]['description'])) {
                 $image->description = $imagesData[$image->id]['description'];
             }
-            \Yii::$app->db->createCommand()
-                ->update(
-                    $this->tableName,
-                    ['name' => $image->name, 'description' => $image->description],
-                    ['id' => $image->id]
-                )->execute();
+            $image->save();
         }
 
         return $imagesToUpdate;

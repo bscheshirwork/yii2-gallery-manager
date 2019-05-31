@@ -5,16 +5,12 @@ namespace bscheshirwork\yii2\galleryManager;
 /**
  * Class GalleryImage
  * This is the model class for table "{{%gallery_image}}"
- * We can change table name use $tableName property of GalleryBehavior
- * @see \bscheshirwork\yii2\galleryManager\GalleryBehavior::$tableName.
  *
  * We can use this class in rules:
  *     public function rules()
  *     {
  *         return [
- *             [['mainPhoto'], 'exist', 'skipOnError' => true, 'targetClass' => get_class(Yii::createObject(GalleryImage::class, [
- *                 $this->getBehavior('galleryBehavior')
- *             ])), 'targetAttribute' => ['mainPhoto' => 'id']],
+ *             [['mainPhoto'], 'exist', 'skipOnError' => true, 'targetClass' => get_class(Yii::createObject(GalleryImage::class)), 'targetAttribute' => ['mainPhoto' => 'id']],
  *         ];
  *     }
  *
@@ -30,32 +26,16 @@ namespace bscheshirwork\yii2\galleryManager;
 class GalleryImage extends \yii\db\ActiveRecord
 {
     /**
-     * @var string table name of AR
+     * @var null|GalleryBehavior
      */
-    protected static $tableName;
-    /**
-     * @var GalleryBehavior
-     */
-    protected $galleryBehavior;
-
-    /**
-     * @param GalleryBehavior $galleryBehavior
-     * @param array $props
-     */
-    public function __construct(GalleryBehavior $galleryBehavior, array $props = [])
-    {
-        $this->galleryBehavior = $galleryBehavior;
-        self::$tableName = $galleryBehavior->tableName;
-
-        parent::__construct($props);
-    }
+    public $galleryBehavior = null;
 
     /**
      * {@inheritdoc}
      */
     public static function tableName()
     {
-        return static::$tableName;
+        return '{{%gallery_image}}';
     }
 
     /**
