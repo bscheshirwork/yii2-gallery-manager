@@ -177,10 +177,11 @@ class GalleryBehavior extends Behavior
             ActiveRecord::EVENT_BEFORE_DELETE => 'beforeDelete',
             ActiveRecord::EVENT_AFTER_UPDATE => 'afterUpdate',
             ActiveRecord::EVENT_AFTER_FIND => 'afterFind',
-            ActiveRecord::EVENT_BEFORE_INSERT => 'afterFind',
             ActiveRecord::EVENT_AFTER_INSERT => 'afterInsert',
         ];
     }
+
+    private $_lastEvent;
 
     public function beforeDelete()
     {
@@ -189,23 +190,33 @@ class GalleryBehavior extends Behavior
             $this->deleteImage($image->id);
         }
         $this->removeDirectory($this->getDirectoryPath());
+        $this->_lastEvent = 'beforeDelete';
     }
 
     public function afterFind()
     {
         $this->_galleryId = $this->getGalleryId();
+        $this->_lastEvent = 'afterFind';
     }
 
+    /**
+     * Move dir to another id if related id will be change.
+     * Only for find -> update. Not for insert -> update.
+     * @throws Exception
+     */
     public function afterUpdate()
     {
-        $galleryId = $this->getGalleryId();
-        if ($this->_galleryId && ($this->_galleryId != $galleryId)) {
-            $dirPath1 = $this->directory . '/' . $this->_galleryId;
-            $dirPath2 = $this->directory . '/' . $galleryId;
-            if (is_dir($dirPath1)) {
-                rename($dirPath1, $dirPath2);
+        if ($this->_lastEvent == 'afterFind') {
+            $galleryId = $this->getGalleryId();
+            if ($this->_galleryId && ($this->_galleryId != $galleryId)) {
+                $dirPath1 = $this->directory . '/' . $this->_galleryId;
+                $dirPath2 = $this->directory . '/' . $galleryId;
+                if (is_dir($dirPath1)) {
+                    rename($dirPath1, $dirPath2);
+                }
             }
         }
+        $this->_lastEvent = 'afterUpdate';
     }
 
     /**
@@ -224,7 +235,7 @@ class GalleryBehavior extends Behavior
         if ($imageIds) {
             /** @var GalleryImage $instance */
             $instance = Yii::createObject($this->imageClass);
-            $instance::updateAll(['ownerId' => $galleryId], ['id' => $imageIds]);
+            $instance::updateAll(['ownerId' => $galleryId], ['id' => $imageIds, 'type' => $this->type]);
             $this->_galleryId = $this->tempDirectory;
             foreach ($imageIds as $imageId) {
                 //rename only related ids
@@ -236,6 +247,7 @@ class GalleryBehavior extends Behavior
                 }
             }
         }
+        $this->_lastEvent = 'afterInsert';
     }
 
     /**
@@ -283,17 +295,19 @@ class GalleryBehavior extends Behavior
         $galleryId = $this->getGalleryId();
         if ($this->_galleryId && ($this->_galleryId != $galleryId)) {
             $galleryDir = $this->directory . DIRECTORY_SEPARATOR . $galleryId;
-            $dirs = FileHelper::findDirectories($galleryDir, ['recursive' => false]);
-            foreach ($dirs as $dirPath1) {
-                $basename = basename($dirPath1);
-                //rename only related ids
-                $dirPath2 = $this->directory . DIRECTORY_SEPARATOR . $this->_galleryId . DIRECTORY_SEPARATOR . $basename;
-                if (is_dir($dirPath1)) {
-                    $this->createFolders($dirPath2);
-                    rename($dirPath1, $dirPath2);
+            if (is_dir($galleryDir)) {
+                $dirs = FileHelper::findDirectories($galleryDir, ['recursive' => false]);
+                foreach ($dirs as $dirPath1) {
+                    $basename = basename($dirPath1);
+                    //rename only related ids
+                    $dirPath2 = $this->directory . DIRECTORY_SEPARATOR . $this->_galleryId . DIRECTORY_SEPARATOR . $basename;
+                    if (is_dir($dirPath1)) {
+                        $this->createFolders($dirPath2);
+                        rename($dirPath1, $dirPath2);
+                    }
                 }
+                $this->removeDirectory($galleryDir);
             }
-            $this->removeDirectory($galleryDir);
         }
     }
 
@@ -358,6 +372,7 @@ class GalleryBehavior extends Behavior
                     $this->_images = $instance::find()
                         ->where([
                             'id' => $imageIds,
+                            'type' => $this->type,
                         ])
                         ->orderBy(['rank' => 'asc'])
                         ->all();

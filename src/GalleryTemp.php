@@ -79,18 +79,23 @@ class GalleryTemp extends \yii\db\ActiveRecord
     /**
      * Regenerate tokens on ticket for next request
      * @param $temporaryIndex
+     * @param array $imageIds
      * @return int
      */
-    public static function regenerateTemps($temporaryIndex)
+    public static function regenerateTemps($temporaryIndex, array $imageIds = [])
     {
         $model = new static;
+        $condition = [
+            'temporaryIndex' => $temporaryIndex,
+            'csrfToken' => static::csrfToken(),
+        ];
+        if ($imageIds) {
+            $condition['imageId'] = $imageIds;
+        }
 
         return $model::updateAll([
             'csrfToken' => Yii::$app->request->csrfToken,
-        ], [
-            'temporaryIndex' => $temporaryIndex,
-            'csrfToken' => static::csrfToken(),
-        ]);
+        ], $condition);
     }
 
 }

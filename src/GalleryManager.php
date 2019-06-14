@@ -63,7 +63,9 @@ class GalleryManager extends Widget
         }
 
         $images = [];
+        $imageIds = [];
         foreach ($this->behavior->getImages() as $image) {
+            $imageIds[] = $image->id;
             $images[] = [
                 'id' => $image->id,
                 'rank' => $image->rank,
@@ -81,7 +83,7 @@ class GalleryManager extends Widget
         if ($galleryId = $this->behavior->getGalleryId()) {
             $baseUrl['galleryId'] = $galleryId;
         } else {
-            Yii::createObject($this->behavior->tempClass)::regenerateTemps($this->behavior->temporaryIndex);
+            Yii::createObject($this->behavior->tempClass)::regenerateTemps($this->behavior->temporaryIndex, $imageIds);
             $baseUrl['temporaryIndex'] = $this->behavior->temporaryIndex;
         }
 
