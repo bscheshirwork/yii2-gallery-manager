@@ -58,6 +58,10 @@ class MultipleInputGalleryManager extends GalleryManager
         $view = $this->getView();
         GalleryManagerAsset::register($view);
         $js = <<<JS
+String.prototype.replaceAll = function(search, replacement) {
+    var target = this;
+    return target.split(search).join(replacement);
+};
 var initMultipleInputGalleryManager = function(index) {
     let id = '{$this->id}'.replaceAll('{{$this->indexPlaceholder}}', index);
     let opts = {$opts};
