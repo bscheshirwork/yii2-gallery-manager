@@ -83,7 +83,7 @@ class GalleryManager extends Widget
         if ($galleryId = $this->behavior->getGalleryId()) {
             $baseUrl['galleryId'] = $galleryId;
         } else {
-            Yii::createObject($this->behavior->tempClass)::regenerateTemps($this->behavior->temporaryIndex, $imageIds);
+            Yii::createObject($this->behavior->tempClass)::regenerateTemps($this->behavior->type, $this->behavior->temporaryIndex, $imageIds);
             $baseUrl['temporaryIndex'] = $this->behavior->temporaryIndex;
         }
 

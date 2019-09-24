@@ -9,6 +9,7 @@ use Yii;
  * This is the model class for table "{{%gallery_temp}}"
  *
  * @property int $id
+ * @property string $type
  * @property int $imageId
  * @property int $temporaryIndex
  * @property string $csrfToken
@@ -38,13 +39,15 @@ class GalleryTemp extends \yii\db\ActiveRecord
 
     /**
      * Get image Id list for temporary tickets
+     * @param $type
      * @param $temporaryIndex
      * @return array
      */
-    public static function imageIdsFromTemp($temporaryIndex)
+    public static function imageIdsFromTemp($type, $temporaryIndex)
     {
         $ids = static::find()
             ->where([
+                'type' => $type,
                 'temporaryIndex' => $temporaryIndex,
                 'csrfToken' => static::csrfToken(),
             ])
@@ -60,13 +63,15 @@ class GalleryTemp extends \yii\db\ActiveRecord
 
     /**
      * Generate new temporary ticket
+     * @param $type
      * @param $imageId
      * @param $temporaryIndex
      * @return bool
      */
-    public static function generateTemp($imageId, $temporaryIndex)
+    public static function generateTemp($type, $imageId, $temporaryIndex)
     {
         $model = new static;
+        $model->type = $type;
         $model->imageId = $imageId;
         $model->temporaryIndex = $temporaryIndex;
         $model->csrfToken = static::csrfToken();
@@ -78,14 +83,16 @@ class GalleryTemp extends \yii\db\ActiveRecord
 
     /**
      * Regenerate tokens on ticket for next request
+     * @param $type
      * @param $temporaryIndex
      * @param array $imageIds
      * @return int
      */
-    public static function regenerateTemps($temporaryIndex, array $imageIds = [])
+    public static function regenerateTemps($type, $temporaryIndex, array $imageIds = [])
     {
         $model = new static;
         $condition = [
+            'type' => $type,
             'temporaryIndex' => $temporaryIndex,
             'csrfToken' => static::csrfToken(),
         ];

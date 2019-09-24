@@ -231,7 +231,7 @@ class GalleryBehavior extends Behavior
         // not for another case insert.
         /** @var GalleryTemp $tempInstance */
         $tempInstance = Yii::createObject($this->tempClass);
-        $imageIds = $tempInstance::imageIdsFromTemp($this->temporaryIndex);
+        $imageIds = $tempInstance::imageIdsFromTemp($this->type, $this->temporaryIndex);
         if ($imageIds) {
             /** @var GalleryImage $instance */
             $instance = Yii::createObject($this->imageClass);
@@ -368,7 +368,7 @@ class GalleryBehavior extends Behavior
             } else {
                 /** @var GalleryTemp $instanceTemp */
                 $instanceTemp = Yii::createObject(GalleryTemp::class);
-                if ($imageIds = $instanceTemp::imageIdsFromTemp($this->temporaryIndex)) {
+                if ($imageIds = $instanceTemp::imageIdsFromTemp($this->type, $this->temporaryIndex)) {
                     $this->_images = $instance::find()
                         ->where([
                             'id' => $imageIds,
@@ -650,7 +650,7 @@ class GalleryBehavior extends Behavior
                 $this->temporaryIndex;
                 $temp = Yii::createObject($this->tempClass);
                 /** @var GalleryTemp $temp */
-                $pass &= (int) $temp::generateTemp($id, $this->temporaryIndex);
+                $pass &= (int) $temp::generateTemp($this->type, $id, $this->temporaryIndex);
             }
 
             $this->replaceImage($id, $fileName);
