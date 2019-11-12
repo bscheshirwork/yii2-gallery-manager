@@ -346,6 +346,18 @@ class GalleryBehavior extends Behavior
     protected $_images = null;
 
     /**
+     * Store images from external sources.
+     * @param GalleryImage[]|null $images
+     */
+    public function setImages(?array $images): void
+    {
+        foreach ($images as $image) {
+            $image->galleryBehavior = $this;
+        }
+        $this->_images = $images;
+    }
+
+    /**
      * @return GalleryImage[]
      * @throws Exception
      */
@@ -388,6 +400,57 @@ class GalleryBehavior extends Behavior
         return $this->_images;
     }
 
+    /**
+     * Mass load and populate GalleryImage into behaviors of passing models
+     * @param iterable $modelList array of models
+     * @param string $behaviorName name of behavior in model
+     * @throws Exception
+     * @throws \yii\base\InvalidConfigException
+     */
+    public static function populateGalleryImages(iterable $modelList, $behaviorName = 'galleryBehavior')
+    {
+        $galleryPkList = [];
+        $behaviorList = [];
+        foreach ($modelList as $item) {
+            /** @var GalleryBehavior $behavior */
+            $behavior = $item->getBehavior($behaviorName);
+            $galleryId = $behavior->getGalleryId();
+            $galleryPkList[$behavior->type][] = $galleryId;
+            $behaviorList[$galleryId] = $behavior;
+        }
+        if (count($behaviorList)) {
+            $condition = ['OR'];
+            foreach ($galleryPkList as $type => $ownerIdList) {
+                $condition[] = [
+                    'type' => $type,
+                    'ownerId' => $ownerIdList,
+                ];
+            }
+            /** @var GalleryBehavior $behavior */
+            $instance = Yii::createObject(GalleryImage::class);
+            $images = $instance::find()
+                ->where($condition)
+                ->orderBy(['rank' => 'asc'])
+                ->all();
+            $grouped = [];
+            /** @var GalleryImage $image */
+            foreach ($images as $image) {
+                $grouped[$image->ownerId][] = $image;
+            }
+            foreach ($grouped as $galleryId => $imageList) {
+                $behavior = $behaviorList[$galleryId];
+                $behavior->setImages($imageList);
+            }
+        }
+    }
+
+    /**
+     * Return file name for display image
+     * @param $imageId
+     * @param string $version
+     * @return string
+     * @throws Exception
+     */
     protected function getFileName($imageId, $version = 'original')
     {
         $folder = $this->getGalleryId();
